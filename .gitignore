@@ -1,0 +1,48 @@
+# Системные файлы операционной системы
+.DS_Store
+Thumbs.db
+
+# Папка .vs от Visual Studio, где хранятся временные данные
+.vs/
+
+# Папка bin и obj - результаты компиляции
+bin/
+obj/
+
+# Папка с логами
+logs/
+*.log
+
+# Пользовательские файлы настроек Visual Studio
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Файлы для работы Visual Studio Code
+.vscode/
+
+# Папка с кэшем NuGet
+**/packages/
+*.nupkg
+*.snupkg
+
+# Папки и файлы конфигурации CI/CD (если не используются в репозитории)
+node_modules/
+*.publishsettings
+
+# Файлы для среды разработки, которые могут различаться у разработчиков
+.env
+.env.*
+
+# Кэш Rider
+.idea/
+.idea/*
+
+# Файлы данных для SQLite и других временных баз данных
+*.db
+*.sqlite
+*.sqlite3
+
+# Личные данные и секреты (если они временно добавлены)
+*.secret
