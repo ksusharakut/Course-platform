@@ -427,8 +427,10 @@ namespace Course_platform.Migrations
 
                     b.Property<string>("Role")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
+                        .HasDefaultValue("regular_user")
                         .HasColumnName("role");
 
                     b.Property<DateTimeOffset>("UpdatedAt")

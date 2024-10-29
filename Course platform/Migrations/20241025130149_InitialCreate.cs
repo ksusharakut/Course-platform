@@ -34,7 +34,7 @@ namespace Course_platform.Migrations
                     date_birth = table.Column<DateOnly>(type: "date", nullable: true),
                     email = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     password_hash = table.Column<string>(type: "character varying(225)", maxLength: 225, nullable: true),
-                    role = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    role = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "regular_user"),
                     verified_degree = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     updated_at = table.Column<DateTimeOffset>(type: "time with time zone", nullable: false, defaultValueSql: "now()"),
                     avatar_url = table.Column<string>(type: "text", nullable: true),
