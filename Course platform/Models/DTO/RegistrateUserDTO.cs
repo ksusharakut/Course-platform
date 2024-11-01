@@ -2,12 +2,12 @@
 {
     public class RegistrateUserDTO
     {
-        public string Nickname { get; set; } = null!;
+        public string Nickname { get; set; } 
 
-        public string Email { get; set; } = null!;
+        public string Email { get; set; } 
 
-        public string Password { get; set; } = null!;
+        public string Password { get; set; } 
 
-        public DateOnly? DateBirth { get; set; }
+        public DateOnly DateBirth { get; set; }
     }
 }

@@ -4,16 +4,13 @@
     {
         public int UserId { get; set; }
 
-        public string Nickname { get; set; } = null!;
+        public string Nickname { get; set; }
 
-        public DateOnly? DateBirth { get; set; }
+        public DateOnly DateBirth { get; set; }
 
-        public string Email { get; set; } = null!;
+        public string Email { get; set; }
 
-
-        public string Role { get; set; } = null!;
-
-        public bool VerifiedDegree { get; set; }
+        public string Role { get; set; } 
 
         public int AccountBalance { get; set; }
     }

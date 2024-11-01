@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Course_platform.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Course_platform.Controllers
@@ -7,9 +8,9 @@ namespace Course_platform.Controllers
     [Route("api/users")]
     public class UserController : ControllerBase
     {
-        private readonly NovaMindContext _context;
+        private readonly CoursePlatformDbContext _context;
 
-        public UserController(NovaMindContext context)
+        public UserController(CoursePlatformDbContext context)
         {
             _context = context;
         }
@@ -17,7 +18,7 @@ namespace Course_platform.Controllers
         [HttpGet,
             Produces("application/json"),
             Consumes("application/json")]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<UserEntity>>> GetUsers()
         {
             return Ok();
         }
@@ -25,7 +26,7 @@ namespace Course_platform.Controllers
         [HttpGet,
            Produces("application/json"),
            Consumes("application/json")]
-        public async Task<ActionResult<User>> GetUserById(int id)
+        public async Task<ActionResult<UserEntity>> GetUserById(int id)
         {
             return Ok();
         }
@@ -34,7 +35,7 @@ namespace Course_platform.Controllers
         [HttpGet,
            Produces("application/json"),
            Consumes("application/json")]
-        public async Task<ActionResult<User>> GetProfile()
+        public async Task<ActionResult<UserEntity>> GetProfile()
         {
             return Ok();
         }
@@ -42,7 +43,7 @@ namespace Course_platform.Controllers
         [HttpPost,
            Produces("application/json"),
            Consumes("application/json")]
-        public async Task<ActionResult<User>> CreateUser([FromBody] User user)
+        public async Task<ActionResult<UserEntity>> CreateUser([FromBody] UserEntity user)
         {
             return Ok();
         }
@@ -50,7 +51,7 @@ namespace Course_platform.Controllers
         [HttpPatch,
             Produces("application/json"),
             Consumes("application/json")]
-        public async Task<ActionResult<User>> UpdateUser([FromBody] User user)
+        public async Task<ActionResult<UserEntity>> UpdateUser([FromBody] UserEntity user)
         {
             return Ok();
         }
@@ -58,7 +59,7 @@ namespace Course_platform.Controllers
         [HttpDelete,
             Produces("application/json"),
             Consumes("application/json")]
-        public async Task<ActionResult<User>> DeleteUser(int id)
+        public async Task<ActionResult<UserEntity>> DeleteUser(int id)
         {
             return BadRequest();
         }

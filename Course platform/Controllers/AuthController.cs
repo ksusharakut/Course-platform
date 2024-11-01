@@ -3,6 +3,11 @@ using Course_platform.Models.DTO;
 using Course_platform.Models;
 using System.Net.Mail;
 using System.Net;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Course_platform.Controllers
 {
@@ -10,17 +15,71 @@ namespace Course_platform.Controllers
     [Route("api/auth")]
     public class AuthController : ControllerBase
     {
-        private readonly NovaMindContext _context;
+        private readonly CoursePlatformDbContext _context;
 
-        public AuthController(NovaMindContext context)
+        public AuthController(CoursePlatformDbContext context)
         {
             _context = context;
+        }
+
+        [AllowAnonymous]
+        [HttpPost("login"),
+            Produces("application/json"),
+            Consumes("application/json")]
+        public async Task<ActionResult> Login([FromBody] LogInDTO loginModel)
+        {
+            UserEntity user = Authenticate(loginModel);
+
+            if (user != null)
+            {
+                object response = Generate(user);
+                return Ok(response);
+            }
+
+            return NotFound("User not found");
+        }
+
+        private object Generate(UserEntity user)
+        {
+            SymmetricSecurityKey securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_KEY")));
+            SigningCredentials credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+            Claim[] claims = new[]
+            {
+                    new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
+                    new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            JwtSecurityToken token = new JwtSecurityToken(
+                Environment.GetEnvironmentVariable("JWT_ISSUER"),
+                Environment.GetEnvironmentVariable("JWT_AUDIENCE"),
+                claims,
+                expires: DateTime.Now.AddDays(7),
+                signingCredentials: credentials);
+
+            string tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+            return new
+            {
+                Token = tokenString,
+                User = new
+                {
+                    user.UserId,
+                    user.Nickname,
+                    user.Email,
+                    user.UpdatedAt,
+                    user.DateBirth,
+                    user.Role,
+                    user.AccountBalance
+                }
+            };
         }
 
         [HttpPost("register"),
            Produces("application/json"),
            Consumes("application/json")]
-        public async Task<ActionResult<User>> RegistrateUser([FromBody] RegistrateUserDTO userDTO)
+        public async Task<ActionResult<UserEntity>> RegistrateUser([FromBody] RegistrateUserDTO userDTO)
         {
             if (!ModelState.IsValid)
             {
@@ -38,7 +97,7 @@ namespace Course_platform.Controllers
                 return BadRequest("User cannot be null");
             }
 
-            User user = new User
+            UserEntity user = new UserEntity
             {
                 Nickname = userDTO.Nickname,
                 Email = userDTO.Email,
@@ -56,7 +115,6 @@ namespace Course_platform.Controllers
                 DateBirth = user.DateBirth,
                 Email = user.Email,
                 Role = user.Role,
-                VerifiedDegree = user.VerifiedDegree,
                 AccountBalance = user.AccountBalance
             };
 
@@ -75,7 +133,7 @@ namespace Course_platform.Controllers
             try
             {
                 string token = GenerateCode();
-                PasswordResetTokens passResetToken = new PasswordResetTokens
+                PasswordResetTokenEntity passResetToken = new PasswordResetTokenEntity
                 {
                     Email = sendEmail.Email,
                     Token = token
@@ -131,19 +189,18 @@ namespace Course_platform.Controllers
                 return BadRequest(ModelState);
             }
 
-            User user = GetUserByEmail(passRecovery.Email, passRecovery.Token);
+            UserEntity user = GetUserByEmail(passRecovery.Email, passRecovery.Token);
             if (user == null)
             {
                 return NotFound(new { error = "Пользователь не найден или неверный код, попробуйте заново или вернитесь к генерации кода подтверждения" });
             }
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(passRecovery.NewPassword);
-            user.UpdatedAt = DateTime.Now;
 
             _context.Users.Update(user);
             _context.SaveChanges();
 
-            PasswordResetTokens token = _context.PasswordResetTokens.FirstOrDefault(resetToken => resetToken.Email == passRecovery.Email && resetToken.Token == passRecovery.Token);
+            PasswordResetTokenEntity token = _context.PasswordResetTokens.FirstOrDefault(resetToken => resetToken.Email == passRecovery.Email && resetToken.Token == passRecovery.Token);
             if (token != null)
             {
                 _context.PasswordResetTokens.Remove(token);
@@ -172,14 +229,24 @@ namespace Course_platform.Controllers
             }
         }
 
-        public User GetUserByEmail(string email, string token)
+        public UserEntity GetUserByEmail(string email, string token)
         {
-            PasswordResetTokens passwordResetToken = _context.PasswordResetTokens.FirstOrDefault(t => t.Email == email && t.Token == token);
+            PasswordResetTokenEntity passwordResetToken = _context.PasswordResetTokens.FirstOrDefault(t => t.Email == email && t.Token == token);
 
             if (passwordResetToken != null)
             {
                 DateTime createdAtUtc = passwordResetToken.CreatedAt.ToUniversalTime().Date;
                 return _context.Users.FirstOrDefault(u => u.Email == email);
+            }
+            return null;
+        }
+        private UserEntity Authenticate(LogInDTO loginModel)
+        {
+            UserEntity currentUser = _context.Users.FirstOrDefault(u => u.Email.ToLower() ==
+               loginModel.Email.ToLower());
+            if (currentUser != null && BCrypt.Net.BCrypt.Verify(loginModel.Password, currentUser.PasswordHash))
+            {
+                return currentUser;
             }
             return null;
         }
