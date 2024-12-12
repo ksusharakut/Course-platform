@@ -1,4 +1,6 @@
-﻿namespace Course_platform.Models
+﻿using System.Text.Json.Serialization;
+
+namespace Course_platform.Models
 {
     public class TransactionEntity
     {
@@ -12,12 +14,13 @@
 
         public DateTimeOffset CreatedAt { get; set; }
 
-        public int CourseId { get; set; }
+        public int? CourseId { get; set; }
 
         public int PlatformFee { get; set; }
 
         public virtual CourseEntity? Course { get; set; }
 
+        [JsonIgnore]
         public virtual UserEntity? User { get; set; }
     }
 }

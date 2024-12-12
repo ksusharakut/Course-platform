@@ -8,6 +8,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.EntityFrameworkCore;
 
 namespace Course_platform.Controllers
 {
@@ -26,9 +27,9 @@ namespace Course_platform.Controllers
         [HttpPost("login"),
             Produces("application/json"),
             Consumes("application/json")]
-        public async Task<ActionResult> Login([FromBody] LogInDTO loginModel)
+        public async Task<IActionResult> Login([FromBody] LogInDTO loginModel)
         {
-            UserEntity user = Authenticate(loginModel);
+            UserEntity user = await Authenticate(loginModel);
 
             if (user != null)
             {
@@ -36,7 +37,12 @@ namespace Course_platform.Controllers
                 return Ok(response);
             }
 
-            return NotFound("User not found");
+           
+            else
+            {
+                Console.WriteLine($"Не удалось найти пользователя с email: {loginModel.Email}");
+                return NotFound("User not found");
+            }
         }
 
         private object Generate(UserEntity user)
@@ -48,7 +54,9 @@ namespace Course_platform.Controllers
             {
                     new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
                     new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim("id", user.UserId.ToString()),
+                    new Claim(ClaimTypes.Role, user.Role)
             };
 
             JwtSecurityToken token = new JwtSecurityToken(
@@ -86,7 +94,7 @@ namespace Course_platform.Controllers
                 return BadRequest(ModelState);
             }
 
-            if(_context.Users.Any(existingUser => existingUser.Email.ToLower() == userDTO.Email.ToLower()))
+            if(await _context.Users.AnyAsync(existingUser => existingUser.Email.ToLower() == userDTO.Email.ToLower()))
             {
                 ModelState.AddModelError("CustomError", "User already exists!");
                 return BadRequest(ModelState);
@@ -105,7 +113,7 @@ namespace Course_platform.Controllers
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDTO.Password)
             };
 
-            _context.Users.Add(user);
+            await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
 
             ReturnUserDTO returnUserDTO = new ReturnUserDTO
@@ -124,7 +132,7 @@ namespace Course_platform.Controllers
         [HttpPost("request_password_reset"),
            Produces("application/json"),
            Consumes("application/json")]
-        public async Task<ActionResult> RequestPasswordReset([FromBody] EmailDTO sendEmail)
+        public async Task<IActionResult> RequestPasswordReset([FromBody] EmailDTO sendEmail)
         {
             if (string.IsNullOrEmpty(sendEmail.Email) || !IsValidEmail(sendEmail.Email))
             {
@@ -132,6 +140,13 @@ namespace Course_platform.Controllers
             }
             try
             {
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == sendEmail.Email);
+                if (user == null)
+                {
+                    return BadRequest(new { error = "Аккаунт с таким email не найден." });
+                }
+
                 string token = GenerateCode();
                 PasswordResetTokenEntity passResetToken = new PasswordResetTokenEntity
                 {
@@ -139,8 +154,8 @@ namespace Course_platform.Controllers
                     Token = token
                 };
 
-                _context.PasswordResetTokens.Add(passResetToken);
-                _context.SaveChanges();
+                await _context.PasswordResetTokens.AddAsync(passResetToken);
+                await _context.SaveChangesAsync();
 
                 string smtpServer = Environment.GetEnvironmentVariable("SMTP_SERVER");
                 string port = Environment.GetEnvironmentVariable("SMTP_PORT");
@@ -159,7 +174,7 @@ namespace Course_platform.Controllers
                     message.Subject = "Код восстановления пароля";
                     message.Body = $"Ваш код восстановления: {token}";
 
-                    client.Send(message);
+                    await client.SendMailAsync(message);
                     return Ok(new { message = "Письмо с кодом отправлено." });
                 }
             }
@@ -173,23 +188,14 @@ namespace Course_platform.Controllers
         [HttpPost("reset_password")]
         [Produces("application/json")]
         [Consumes("application/json")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public IActionResult ConfirmPassword([FromBody] PasswordRecoveryDTO passRecovery)
+        public async Task <IActionResult> ConfirmPassword([FromBody] PasswordRecoveryDTO passRecovery)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            if (passRecovery.NewPassword != passRecovery.RepeatPassword)
-            {
-                ModelState.AddModelError("RepeatPassword", "Пароли не совпадают.");
-                return BadRequest(ModelState);
-            }
-
-            UserEntity user = GetUserByEmail(passRecovery.Email, passRecovery.Token);
+            UserEntity user = await GetUserByEmail(passRecovery.Email, passRecovery.Token);
             if (user == null)
             {
                 return NotFound(new { error = "Пользователь не найден или неверный код, попробуйте заново или вернитесь к генерации кода подтверждения" });
@@ -198,13 +204,13 @@ namespace Course_platform.Controllers
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(passRecovery.NewPassword);
 
             _context.Users.Update(user);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
 
-            PasswordResetTokenEntity token = _context.PasswordResetTokens.FirstOrDefault(resetToken => resetToken.Email == passRecovery.Email && resetToken.Token == passRecovery.Token);
+            PasswordResetTokenEntity token = await _context.PasswordResetTokens.FirstOrDefaultAsync(resetToken => resetToken.Email == passRecovery.Email && resetToken.Token == passRecovery.Token);
             if (token != null)
             {
                 _context.PasswordResetTokens.Remove(token);
-                _context.SaveChanges();
+                await _context.SaveChangesAsync();
             }
 
             return Ok(new { message = "Пароль успешно обновлен." });
@@ -229,20 +235,19 @@ namespace Course_platform.Controllers
             }
         }
 
-        public UserEntity GetUserByEmail(string email, string token)
+        private async Task<UserEntity> GetUserByEmail(string email, string token)
         {
-            PasswordResetTokenEntity passwordResetToken = _context.PasswordResetTokens.FirstOrDefault(t => t.Email == email && t.Token == token);
+            PasswordResetTokenEntity passwordResetToken = await _context.PasswordResetTokens.FirstOrDefaultAsync(t => t.Email == email && t.Token == token);
 
             if (passwordResetToken != null)
             {
-                DateTime createdAtUtc = passwordResetToken.CreatedAt.ToUniversalTime().Date;
-                return _context.Users.FirstOrDefault(u => u.Email == email);
+                return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
             }
             return null;
         }
-        private UserEntity Authenticate(LogInDTO loginModel)
+        private async Task<UserEntity> Authenticate(LogInDTO loginModel)
         {
-            UserEntity currentUser = _context.Users.FirstOrDefault(u => u.Email.ToLower() ==
+            UserEntity currentUser = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() ==
                loginModel.Email.ToLower());
             if (currentUser != null && BCrypt.Net.BCrypt.Verify(loginModel.Password, currentUser.PasswordHash))
             {

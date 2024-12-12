@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Text.Json.Serialization;
 
 namespace Course_platform.Models
 {
@@ -10,8 +11,13 @@ namespace Course_platform.Models
 
         public string Title { get; set; }
 
-        public string Content { get; set; }
+        // Хранит путь к файлу, где содержится текст урока
+        public string FilePath { get; set; }
 
+        // Индекс порядка урока в юните
+        public int OrderIndex { get; set; }
+
+        [JsonIgnore]
         public virtual UnitEntity? Unit { get; set; }
     }
 }

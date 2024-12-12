@@ -1,4 +1,6 @@
-﻿namespace Course_platform.Models
+﻿using System.Text.Json.Serialization;
+
+namespace Course_platform.Models
 {
     public class CourseEntity
     {
@@ -13,6 +15,7 @@
         public string? Description { get; set; }
 
         public int Price { get; set; }
+        public bool IsPublished { get; set; } = false;
 
         public virtual ICollection<UnitEntity> Units { get; set; } = new List<UnitEntity>();
 
@@ -24,6 +27,7 @@
 
         public virtual ICollection<UserCourseProgressEntity> UserCourseProgresses { get; set; } = new List<UserCourseProgressEntity>();
 
+        [JsonIgnore]
         public virtual ICollection<CategoryEntity> Categories { get; set; } = new List<CategoryEntity>();
     }
 }
